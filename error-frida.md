@@ -79,3 +79,28 @@ Traceback (most recent call last):[SM P610::com.kingmo.app ]->
     self._impl.resume(self._pid_of(target))
 frida.ProcessNotFoundError: unable to find process with pid 29883
 ```
+
+---
+
+## 자료
+### 자료1
+https://frida.re/docs/javascript-api/#interceptor-onenter
+
+`Interceptor.replace(target, replacement[, data])`: replace function at `target` with implementation at `replacement`. This is typically used if you want to fully or partially replace an existing function’s implementation.
+
+Use [`NativeCallback`](https://frida.re/docs/javascript-api/#nativecallback) to implement a `replacement` in JavaScript.
+
+In case the replaced function is very hot, you may implement `replacement` in C using **[CModule](https://frida.re/docs/javascript-api/#cmodule)**. You may then also specify the third optional argument `data`, which is a [`NativePointer`](https://frida.re/docs/javascript-api/#nativepointer) accessible through `gum_invocation_context_get_listener_function_data()`. Use `gum_interceptor_get_current_invocation()` to get hold of the `GumInvocationContext *`.
+
+Note that `replacement` will be kept alive until [`Interceptor#revert`](https://frida.re/docs/javascript-api/#interceptor-revert) is called.
+```ts
+const openPtr = Module.getExportByName('libc.so', 'open');
+const open = new NativeFunction(openPtr, 'int', ['pointer', 'int']);
+Interceptor.replace(openPtr, new NativeCallback((pathPtr, flags) => {
+  const path = pathPtr.readUtf8String();
+  log('Opening "' + path + '"');
+  const fd = open(pathPtr, flags);
+  log('Got fd: ' + fd);
+  return fd;
+}, 'int', ['pointer', 'int']));
+```
